@@ -1,0 +1,35 @@
+openapi: 3.1.0
+
+info:
+  title: ip-location-rs
+  description: IP to Location REST API server made with axum.rs
+  version: 0.1.0
+
+paths:
+  /:
+    get:
+      parameters:
+        - in: query
+          name: ip
+          schema:
+            type: string 
+          required: false
+          description: An IPv4/IPv6 address to query. Uses the client's IP if query parameter is null.
+        - in: cookie
+          name: X-Forwarded-For
+          schema:
+            type: IP address
+          required: false
+          description: The client's IP behind a reverse proxy
+      summary: Returns the location of the specified IP address
+      responses:
+        "200":
+          description: A JSON dictionary of the specified IP location
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  type: string
+        "415":
+          description: Invalid request 
