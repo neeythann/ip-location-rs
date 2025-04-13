@@ -185,10 +185,10 @@ async fn main() {
         .get_or_init(|| async { init_reader("asn-ipv4.mmdb").await.unwrap() })
         .await;
     IPV6_COUNTRY
-        .get_or_init(|| async { init_reader("asn-country-ipv4.mmdb").await.unwrap() })
+        .get_or_init(|| async { init_reader("asn-country-ipv6.mmdb").await.unwrap() })
         .await;
     IPV6_ASN
-        .get_or_init(|| async { init_reader("asn-ipv4.mmdb").await.unwrap() })
+        .get_or_init(|| async { init_reader("asn-ipv6.mmdb").await.unwrap() })
         .await;
 
     let routes = Router::new().route("/", get(index));
