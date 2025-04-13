@@ -5,11 +5,11 @@ IP to Location REST API server made with axum.rs
 
 ## Installation
 
-`docker pull neeythann/ip-location-rs -p 8000:8000`
+`docker run -d -p 8000:8000 neeythann/ip-location-rs`
 
 ## Building from Source
 
-To build the project from source, you'll need Rust and cargo installed.
+To build the project from source, you'll need [Rust](https://www.rust-lang.org/) and [cargo](https://doc.rust-lang.org/cargo/) installed.
 
 ```bash
 git clone https://github.com/neeythann/ip-location-rs.git
@@ -28,7 +28,7 @@ This microservice only has one endpoint at the root (`/`) which accepts an `ip` 
 ### Sample Usage
 
 ```bash
-curl -s http://localhost:8000/?ip=1.1.1.1 -H 'X-Forwarded-For: 1.1.1.1' |jq
+curl -s http://localhost:8000/?ip=1.1.1.1 -H 'X-Forwarded-For: 1.1.1.1' | jq
 ```
 
 Which outputs:
@@ -54,4 +54,4 @@ You may download the databases from https://github.com/sapics/ip-location-db/tre
 
 ## License
 
-This repository is licensed under the MIT license - see the LICENSE file for more details.
+This repository is licensed under the MIT license - see the [LICENSE](https://github.com/neeythann/ip-location-rs/blob/main/LICENSE) file for more details.
