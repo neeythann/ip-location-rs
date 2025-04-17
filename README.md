@@ -19,7 +19,9 @@ cargo build --release
 
 ## Usage
 
-This microservice only has one endpoint at the root (`/`) which accepts an `ip` query paramter
+For more information, please see the [openapi.yaml file spec](https://github.com/neeythann/ip-location-rs/blob/main/openapi.yaml)
+
+This microservice only has one production-ready endpoint at the root (`/`) which accepts an `ip` query paramter
 - If no `ip` query paramter is provided, the server will attempt to use:
   - The client's public IP address, if available;
   - or the `X-Forwarded-For` header (if present).
@@ -46,6 +48,14 @@ Which outputs:
   }
 }
 ```
+
+
+### Experimental Endpoints
+
+To enable experimental endpoints, pass the `--experimental` flag when executing the program
+
+`GET /AS/{asn_number}` - returns a JSON response containing the ASN's details and associated networks
+`GET /country/{country_code}` - returns a JSON response containing the country details and associated networks
 
 ## Data Sources
 

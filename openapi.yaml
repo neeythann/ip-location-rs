@@ -32,4 +32,74 @@ paths:
                 items:
                   type: string
         "415":
-          description: Invalid request 
+          description: Invalid request. 
+
+  /AS/{asn}:
+    get:
+      summary: Get ASN Information
+      description: Retrieve ASN information and associated IP networks for a given ASN.
+      parameters:
+        - name: asn
+          in: path
+          required: true
+          description: Autonomous System Number (ASN).
+          schema:
+            type: integer
+            example: 12345
+      responses:
+        "200":
+          description: Successful response containing ASN information and networks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  asn:
+                    type: object
+                    properties:
+                      autonomous_system_number:
+                        type: integer
+                        example: 12345
+                      autonomous_system_organization:
+                        type: string
+                        example: Example Organization
+                  networks:
+                    type: array
+                    items:
+                      type: string
+                      example: "192.0.2.0/24"
+        "400":
+          description: Bad request (e.g., ASN not valid).
+  /country/{country_code}:
+    get:
+      summary: Get Country Information
+      description: Retrieve country information and associated IP networks for a given country code.
+      parameters:
+        - name: country_code
+          in: path
+          required: true
+          description: ISO 3166-1 alpha-2 country code.
+          schema:
+            type: string
+            example: US
+      responses:
+        "200":
+          description: Successful response containing country information and networks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  country:
+                    type: object
+                    properties:
+                      country_code:
+                        type: string
+                        example: US
+                  networks:
+                    type: array
+                    items:
+                      type: string
+                      example: "192.0.2.0/24"
+        "400":
+          description: Bad request (e.g., country code not valid).

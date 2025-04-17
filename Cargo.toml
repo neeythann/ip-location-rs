@@ -1,6 +1,6 @@
 [package]
 name = "ip-location-rs"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 authors = ["Nathan Xavier Golez <89695588+neeythann@users.noreply.github.com>"]
 license = "MIT"
@@ -8,6 +8,8 @@ repository = "https://github.com/neeythann/ip-location-rs"
 
 [dependencies]
 axum = "0.8.3"
+clap = {version = "4.5.36", features = ["derive"]}
+ipnetwork = "0.21.1"
 maxminddb = "0.26.0"
 serde = {version = "1.0.219", features = ["derive"]}
 tokio = {version = "1.44.1", features = ["full"]}
