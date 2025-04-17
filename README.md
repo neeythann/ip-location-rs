@@ -49,7 +49,7 @@ Which outputs:
 
 ## Data Sources
 
-This service uses [RouteViews](https://www.routeviews.org/routeviews/) and [DB-IP](https://db-ip.com/) MMDB files for geolocation, which are licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0).
+This service uses [RouteViews](https://www.routeviews.org/routeviews/) and [DB-IP](https://db-ip.com/) MMDB files for geolocation, which are licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0).
 You may download the databases from https://github.com/sapics/ip-location-db/tree/main/asn/ or see the `run.sh` file
 
 ## License
