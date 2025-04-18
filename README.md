@@ -1,6 +1,7 @@
 # ip-location-rs
 
-IP to Location REST API server made with axum.rs
+ip-location-rs is a RESTful batteries-included IP information lookup microservice made with Rust.
+It’s designed for high performance, easy deployment, and minimal dependencies.
 
 
 ## Installation
@@ -27,6 +28,13 @@ This microservice only has one production-ready endpoint at the root (`/`) which
   - or the `X-Forwarded-For` header (if present).
 - Else would return a HTTP 415 error
 
+### Experimental Endpoints
+
+To enable experimental endpoints, pass the `--experimental` flag when executing the program
+
+`GET /AS/{asn_number}` - returns a JSON response containing the ASN's details and associated networks  
+`GET /country/{country_code}` - returns a JSON response containing the country details and associated networks
+
 ### Sample Usage
 
 ```bash
@@ -48,14 +56,6 @@ Which outputs:
   }
 }
 ```
-
-
-### Experimental Endpoints
-
-To enable experimental endpoints, pass the `--experimental` flag when executing the program
-
-`GET /AS/{asn_number}` - returns a JSON response containing the ASN's details and associated networks
-`GET /country/{country_code}` - returns a JSON response containing the country details and associated networks
 
 ## Data Sources
 
