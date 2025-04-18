@@ -30,6 +30,14 @@ struct Args {
         help = "enable experimental routes"
     )]
     experimental: bool,
+
+    #[arg(
+        short,
+        long,
+        default_value = "0.0.0.0:8000",
+        help = "A socket to listen for the server"
+    )]
+    listen: SocketAddr,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -312,7 +320,7 @@ async fn main() {
                 .route("/country/{country_code}", get(endpoint_get_country)),
         );
     }
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(args.listen).await.unwrap();
     axum::serve(
         listener,
         routes.into_make_service_with_connect_info::<SocketAddr>(),
