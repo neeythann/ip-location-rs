@@ -12,7 +12,7 @@ use std::{
     fmt::Error,
     net::{IpAddr, SocketAddr},
 };
-use tokio::sync::OnceCell;
+use tokio::{sync::OnceCell, task::yield_now};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 static IPV4_COUNTRY: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
@@ -226,7 +226,8 @@ async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<Json<AsnResponse>, S
         if asn_info.is_none() {
             asn_info = Some(item.info.clone());
         }
-        net.push(item.ip_net.to_string())
+        net.push(item.ip_net.to_string());
+        yield_now().await;
     }
     iter = IPV6_ASN.get().unwrap().within(network6).unwrap();
     while let Some(next) = iter.next() {
@@ -234,7 +235,8 @@ async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<Json<AsnResponse>, S
         if item.info.autonomous_system_number != asn {
             continue;
         }
-        net.push(item.ip_net.to_string())
+        net.push(item.ip_net.to_string());
+        yield_now().await;
     }
 
     Ok(Json(AsnResponse::new(asn_info.unwrap(), Some(net))))
@@ -270,7 +272,8 @@ async fn endpoint_get_country(
         if country_info.is_none() {
             country_info = Some(item.info);
         }
-        net.push(item.ip_net.to_string())
+        net.push(item.ip_net.to_string());
+        yield_now().await;
     }
 
     let network6: IpNetwork = "::0/0".parse().unwrap();
@@ -280,7 +283,8 @@ async fn endpoint_get_country(
         if item.info.country_code != country_code {
             continue;
         }
-        net.push(item.ip_net.to_string())
+        net.push(item.ip_net.to_string());
+        yield_now().await;
     }
 
     Ok(Json(CountryResponse {
