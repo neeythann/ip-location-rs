@@ -207,7 +207,7 @@ impl AsnResponse {
 }
 
 // TODO(neeythann):
-// - validate Path(asn) with ISO 3166-1 alpha-2
+// - validate Path(asn)
 // - cache this result at startup
 async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<Json<AsnResponse>, StatusCode> {
     let network4: IpNetwork = "0.0.0.0/0".parse().unwrap();
@@ -285,6 +285,12 @@ async fn endpoint_get_country(
         }
         net.push(item.ip_net.to_string());
         yield_now().await;
+    }
+
+    // TODO(neeythann): prematurely check `Path(country)` at the start
+    // if it's an ISO 3166-1 alpha-2 country code
+    if country_info.is_none() {
+        return Err(StatusCode::BAD_REQUEST);
     }
 
     Ok(Json(CountryResponse {
