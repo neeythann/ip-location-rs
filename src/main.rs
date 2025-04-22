@@ -22,6 +22,7 @@ static IPV6_COUNTRY: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
 static IPV6_ASN: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
 
 #[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
 struct Args {
     #[arg(
         short,
