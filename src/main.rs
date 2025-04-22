@@ -240,6 +240,10 @@ async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<Json<AsnResponse>, S
         yield_now().await;
     }
 
+    if asn_info.is_none() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
     Ok(Json(AsnResponse::new(asn_info.unwrap(), Some(net))))
 }
 
@@ -255,7 +259,7 @@ pub struct CountryResponse {
 async fn endpoint_get_country(
     Path(country_code): Path<String>,
 ) -> Result<Json<CountryResponse>, StatusCode> {
-    if country_code.len() != 2 {
+    if country_code.len() != 2 || !country_code.bytes().all(|c| matches!(c, b'A'..=b'Z')) {
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -300,14 +304,7 @@ async fn endpoint_get_country(
     }))
 }
 
-#[tokio::main]
-async fn main() {
-    let args = Args::parse();
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-    tracing::event!(tracing::Level::INFO, "main");
-
+async fn init_mmdb() {
     // TODO(neeythann): Vector map() (Reader, Path) instead
     IPV4_COUNTRY
         .get_or_init(|| async { init_reader("asn-country-ipv4.mmdb").await.unwrap() })
@@ -321,9 +318,20 @@ async fn main() {
     IPV6_ASN
         .get_or_init(|| async { init_reader("asn-ipv6.mmdb").await.unwrap() })
         .await;
+}
+
+#[tokio::main]
+async fn main() {
+    let args = Args::parse();
+
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+    tracing::event!(tracing::Level::INFO, "main");
+
+    init_mmdb().await;
 
     let mut routes = Router::new().route("/", get(index));
-
     if args.experimental {
         routes = routes.merge(
             Router::new()
@@ -338,4 +346,281 @@ async fn main() {
     )
     .await
     .unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        http::{self, Request, StatusCode},
+    };
+    use tower::ServiceExt; // for `call`, `oneshot`, and `ready`
+
+    #[tokio::test]
+    async fn oncecell_not_none() {
+        init_mmdb().await;
+        IPV4_ASN.get().unwrap();
+        IPV6_ASN.get().unwrap();
+        IPV4_COUNTRY.get().unwrap();
+        IPV6_COUNTRY.get().unwrap();
+    }
+
+    #[tokio::test]
+    async fn index_query_ip_ipv4() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/?ip=1.1.1.1")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn index_query_ip_ipv4_localhost() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/?ip=127.0.0.1")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn index_query_ip_ipv4_invalid() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/?ip=1.1.1")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn index_query_ip_ipv6() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/?ip=2606:4700:4700::1111")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        // TODO(neeythann): Figure why this returns a 500
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn index_query_ip_ipv6_invalid() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/?ip=2606:4700:470")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn index_header_xforwardedfor_ip_ipv4() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .header("X-Forwarded-For", "1.1.1.1")
+            .uri("/")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn index_header_xforwardedfor_ip_ipv6() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .header("X-Forwarded-For", "2606:4700:4700::1111")
+            .uri("/")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn index_header_cfconnectingip_ip_ipv4() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .header("CF-Connecting-IP", "1.1.1.1")
+            .uri("/")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE)
+    }
+
+    #[tokio::test]
+    async fn index_header_cfconnectingip_ip_ipv6() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .header("CF-Connecting-IP", "2606:4700:4700::1111")
+            .uri("/")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE)
+    }
+
+    #[tokio::test]
+    async fn index_mixed_query_header() {
+        init_mmdb().await;
+        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .header("X-Forwarded-For", "2606:4700:4700::1111")
+            .uri("/?ip=1.1.1.1")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn asn_valid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/AS/{asn_number}", get(endpoint_get_asn))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/AS/1")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn asn_invalid_number() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/AS/{asn_number}", get(endpoint_get_asn))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/AS/9999999")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn asn_invalid_type() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/AS/{asn_number}", get(endpoint_get_asn))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/AS/foobar")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn country_valid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/country/{country_code}", get(endpoint_get_country))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/country/PH")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn country_invalid_lowercase() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/country/{country_code}", get(endpoint_get_country))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/country/ph")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn country_invalid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/country/{country_code}", get(endpoint_get_country))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/country/foobar")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
 }

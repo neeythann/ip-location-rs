@@ -357,6 +357,7 @@ dependencies = [
  "maxminddb",
  "serde",
  "tokio",
+ "tower",
  "tracing",
  "tracing-subscriber",
 ]
