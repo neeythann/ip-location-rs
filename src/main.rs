@@ -288,13 +288,8 @@ async fn endpoint_get_country(
     }))
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct IpParam {
-    ip: IpAddr,
-}
-
-async fn endpoint_get_ip(Path(ip): Path<IpParam>) -> Result<Json<RequestedAddress>, StatusCode> {
-    match ip.ip {
+async fn endpoint_get_ip(Path(ip): Path<IpAddr>) -> Result<Json<RequestedAddress>, StatusCode> {
+    match ip {
         IpAddr::V4(ipv4) => {
             if ipv4.is_loopback()
                 || ipv4.is_private()
@@ -304,9 +299,9 @@ async fn endpoint_get_ip(Path(ip): Path<IpParam>) -> Result<Json<RequestedAddres
                 return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
             }
             return Ok(Json(RequestedAddress {
-                ip: ip.ip,
-                country: get_country(ip.ip),
-                asn: get_asn(ip.ip),
+                ip,
+                country: get_country(ip),
+                asn: get_asn(ip),
             }));
         }
         IpAddr::V6(ipv6) => {
@@ -319,9 +314,9 @@ async fn endpoint_get_ip(Path(ip): Path<IpParam>) -> Result<Json<RequestedAddres
                 return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
             }
             return Ok(Json(RequestedAddress {
-                ip: ip.ip,
-                country: get_country(ip.ip),
-                asn: get_asn(ip.ip),
+                ip,
+                country: get_country(ip),
+                asn: get_asn(ip),
             }));
         }
     }
@@ -378,6 +373,7 @@ mod tests {
     use super::*;
     use axum::{
         body::Body,
+        extract::connect_info::MockConnectInfo,
         http::{self, Request, StatusCode},
     };
     use tower::ServiceExt; // for `call`, `oneshot`, and `ready`
@@ -571,5 +567,37 @@ mod tests {
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn ip_ipv4_valid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/1.1.1.1")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn ip_ipv6_valid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/2606:4700:4700::1111")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
     }
 }
