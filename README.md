@@ -25,8 +25,10 @@ cargo build --release
 For more information, please see the [openapi.yaml file spec](https://github.com/neeythann/ip-location-rs/blob/main/openapi.yaml)
 
 `GET /` - returns a JSON response containing the current user's IP address AS and country details  
+
 `GET /AS/{asn_number}` - returns a JSON response containing the ASN's details and associated networks  
-`GET /country/{country_code}` - returns a JSON response containing the country details and associated networks
+
+`GET /country/{country_code}` - returns a JSON response containing the country details and associated networks  
 
 ### Sample Usage
 
