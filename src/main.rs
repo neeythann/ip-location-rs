@@ -70,7 +70,6 @@ impl RequestedAddress {
         }
     }
 
-    #[warn(dead_code)]
     pub fn new(ip: IpAddr, country: Option<Country>, asn: Option<Asn>) -> Self {
         let mut rtn = RequestedAddress::default(ip);
         rtn.country = country;
@@ -121,56 +120,27 @@ async fn index(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Result<Json<RequestedAddress>, StatusCode> {
-    let ip = addr.ip();
-    let invalid_proxy: bool =
-        !headers.contains_key("X-Forwarded-For") || headers.contains_key("CF-Connecting-IP");
+    // NOTE: this is kind of a tricky situation to handle as a user could just pass the
+    // PROXY_HEADER directly if this microservice is deployed
+    let maybe_ip: Option<IpAddr> = match headers.get("X-Real-IP") {
+        Some(ip) => Some(ip.to_str().unwrap().parse().unwrap()),
+        None => None,
+    };
 
-    match ip {
-        IpAddr::V4(ipv4) => {
-            if ipv4.is_loopback() || ipv4.is_private() || ipv4.is_link_local() {
-                if invalid_proxy {
-                    return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-                }
-
-                let x_forwarded_for: IpAddr = match headers.get("X-Forwarded-For") {
-                    Some(ip) => ip.to_str().unwrap().parse().unwrap(),
-                    None => return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE),
-                };
-
-                return Ok(Json(RequestedAddress::new(
-                    x_forwarded_for,
-                    get_country(x_forwarded_for),
-                    get_asn(x_forwarded_for),
-                )));
-            }
-
-            Ok(Json(RequestedAddress::new(
+    match maybe_ip {
+        Some(ip) => {
+            return Ok(Json(RequestedAddress {
                 ip,
-                get_country(ip),
-                get_asn(ip),
-            )))
+                country: get_country(ip),
+                asn: get_asn(ip),
+            }));
         }
-        IpAddr::V6(ipv6) => {
-            if ipv6.is_loopback() || ipv6.is_unicast_link_local() || ipv6.is_unspecified() {
-                if invalid_proxy {
-                    return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-                }
-                let x_forwarded_for: IpAddr = match headers.get("X-Forwarded-For") {
-                    Some(ip) => ip.to_str().unwrap().parse().unwrap(),
-                    None => return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE),
-                };
-
-                return Ok(Json(RequestedAddress::new(
-                    x_forwarded_for,
-                    get_country(x_forwarded_for),
-                    get_asn(x_forwarded_for),
-                )));
-            }
-            Ok(Json(RequestedAddress::new(
-                ip,
-                get_country(ip),
-                get_asn(ip),
-            )))
+        None => {
+            return Ok(Json(RequestedAddress {
+                ip: addr.ip(),
+                country: get_country(addr.ip()),
+                asn: get_asn(addr.ip()),
+            }));
         }
     }
 }
