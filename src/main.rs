@@ -586,6 +586,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn ip_invalid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/foobar")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn ip_ipv4_invalid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/1.1.1")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
     async fn ip_ipv6_valid() {
         init_mmdb().await;
         let app = Router::new()
@@ -599,5 +631,21 @@ mod tests {
             .unwrap();
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn ip_ipv6_invalid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/2606:4700:4700:")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
     }
 }
