@@ -62,6 +62,7 @@ struct RequestedAddress {
 }
 
 impl RequestedAddress {
+    #[warn(dead_code)]
     pub fn default(ip: IpAddr) -> Self {
         RequestedAddress {
             ip,
@@ -70,6 +71,7 @@ impl RequestedAddress {
         }
     }
 
+    #[warn(dead_code)]
     pub fn new(ip: IpAddr, country: Option<Country>, asn: Option<Asn>) -> Self {
         let mut rtn = RequestedAddress::default(ip);
         rtn.country = country;
