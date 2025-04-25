@@ -1,6 +1,6 @@
 use axum::{
     Json, Router,
-    extract::{ConnectInfo, Path, Query},
+    extract::{ConnectInfo, Path},
     http::{HeaderMap, StatusCode},
     routing::get,
 };
@@ -116,27 +116,11 @@ pub fn get_asn(ip: IpAddr) -> Option<Asn> {
     }
 }
 
-#[derive(Deserialize)]
-struct IndexParam {
-    ip: Option<IpAddr>,
-}
-
 // TODO(neeythann): refactor this function
 async fn index(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
-    Query(param): Query<IndexParam>,
 ) -> Result<Json<RequestedAddress>, StatusCode> {
-    // TODO(neeythann): handle private IP address. This should return a HTTP 415 if it's a private IP
-    // address - `response.country` and `response.asn` attributes are currently set to null
-    if let Some(ip) = param.ip {
-        return Ok(Json(RequestedAddress::new(
-            ip,
-            get_country(ip),
-            get_asn(ip),
-        )));
-    }
-
     let ip = addr.ip();
     let invalid_proxy: bool =
         !headers.contains_key("X-Forwarded-For") || headers.contains_key("CF-Connecting-IP");
@@ -304,6 +288,40 @@ async fn endpoint_get_country(
     }))
 }
 
+async fn endpoint_get_ip(Path(ip): Path<IpAddr>) -> Result<Json<RequestedAddress>, StatusCode> {
+    match ip {
+        IpAddr::V4(ipv4) => {
+            if ipv4.is_loopback()
+                || ipv4.is_private()
+                || ipv4.is_unspecified()
+                || ipv4.is_broadcast()
+            {
+                return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+            }
+            return Ok(Json(RequestedAddress {
+                ip,
+                country: get_country(ip),
+                asn: get_asn(ip),
+            }));
+        }
+        IpAddr::V6(ipv6) => {
+            if ipv6.is_loopback()
+                || ipv6.is_multicast()
+                || ipv6.is_unspecified()
+                || ipv6.is_unique_local()
+                || ipv6.is_unicast_link_local()
+            {
+                return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+            }
+            return Ok(Json(RequestedAddress {
+                ip,
+                country: get_country(ip),
+                asn: get_asn(ip),
+            }));
+        }
+    }
+}
+
 async fn init_mmdb() {
     // TODO(neeythann): Vector map() (Reader, Path) instead
     IPV4_COUNTRY
@@ -331,7 +349,9 @@ async fn main() {
 
     init_mmdb().await;
 
-    let mut routes = Router::new().route("/", get(index));
+    let mut routes = Router::new()
+        .route("/", get(index))
+        .route("/ip/{ip_address}", get(endpoint_get_ip));
     if args.experimental {
         routes = routes.merge(
             Router::new()
@@ -353,9 +373,10 @@ mod tests {
     use super::*;
     use axum::{
         body::Body,
+        extract::connect_info::MockConnectInfo,
         http::{self, Request, StatusCode},
     };
-    use tower::ServiceExt; // for `call`, `oneshot`, and `ready`
+    use tower::{Service, ServiceExt}; // for `call`, `oneshot`, and `ready`
 
     #[tokio::test]
     async fn oncecell_not_none() {
@@ -367,85 +388,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn index_query_ip_ipv4() {
-        init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
-        let request = Request::builder()
-            .method(http::Method::GET)
-            .header("Accept", "*/*")
-            .uri("/?ip=1.1.1.1")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK)
-    }
-
-    #[tokio::test]
-    async fn index_query_ip_ipv4_localhost() {
-        init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
-        let request = Request::builder()
-            .method(http::Method::GET)
-            .header("Accept", "*/*")
-            .uri("/?ip=127.0.0.1")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
-    }
-
-    #[tokio::test]
-    async fn index_query_ip_ipv4_invalid() {
-        init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
-        let request = Request::builder()
-            .method(http::Method::GET)
-            .header("Accept", "*/*")
-            .uri("/?ip=1.1.1")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
-    }
-
-    #[tokio::test]
-    async fn index_query_ip_ipv6() {
-        init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
-        let request = Request::builder()
-            .method(http::Method::GET)
-            .header("Accept", "*/*")
-            .uri("/?ip=2606:4700:4700::1111")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        // TODO(neeythann): Figure why this returns a 500
-        assert_eq!(response.status(), StatusCode::OK)
-    }
-
-    #[tokio::test]
-    async fn index_query_ip_ipv6_invalid() {
-        init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
-        let request = Request::builder()
-            .method(http::Method::GET)
-            .header("Accept", "*/*")
-            .uri("/?ip=2606:4700:470")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
-    }
-
-    #[tokio::test]
     async fn index_header_xforwardedfor_ip_ipv4() {
         init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let app = Router::new()
+            .route("/", get(index))
+            .layer(MockConnectInfo("127.0.0.1:8000".parse::<SocketAddr>()))
+            .into_service();
         let request = Request::builder()
             .method(http::Method::GET)
             .header("Accept", "*/*")
@@ -461,7 +409,10 @@ mod tests {
     #[tokio::test]
     async fn index_header_xforwardedfor_ip_ipv6() {
         init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let mut app = Router::new()
+            .route("/", get(index))
+            .layer(MockConnectInfo("127.0.0.1:8000".parse::<SocketAddr>()))
+            .into_service::<Body>();
         let request = Request::builder()
             .method(http::Method::GET)
             .header("Accept", "*/*")
@@ -470,14 +421,17 @@ mod tests {
             .body(Body::empty())
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
+        let response = app.ready().await.unwrap().call(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK)
     }
 
     #[tokio::test]
     async fn index_header_cfconnectingip_ip_ipv4() {
         init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let app = Router::new()
+            .route("/", get(index))
+            .layer(MockConnectInfo("127.0.0.1:8000".parse::<SocketAddr>()))
+            .into_service::<Body>();
         let request = Request::builder()
             .method(http::Method::GET)
             .header("Accept", "*/*")
@@ -493,7 +447,10 @@ mod tests {
     #[tokio::test]
     async fn index_header_cfconnectingip_ip_ipv6() {
         init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
+        let app = Router::new()
+            .route("/", get(index))
+            .layer(MockConnectInfo("127.0.0.1".parse::<SocketAddr>()))
+            .into_service::<Body>();
         let request = Request::builder()
             .method(http::Method::GET)
             .header("Accept", "*/*")
@@ -504,22 +461,6 @@ mod tests {
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE)
-    }
-
-    #[tokio::test]
-    async fn index_mixed_query_header() {
-        init_mmdb().await;
-        let app = Router::new().route("/", get(index)).into_service::<Body>();
-        let request = Request::builder()
-            .method(http::Method::GET)
-            .header("Accept", "*/*")
-            .header("X-Forwarded-For", "2606:4700:4700::1111")
-            .uri("/?ip=1.1.1.1")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK)
     }
 
     #[tokio::test]
@@ -620,6 +561,86 @@ mod tests {
             .body(Body::empty())
             .unwrap();
 
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn ip_ipv4_valid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/1.1.1.1")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn ip_invalid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/foobar")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn ip_ipv4_invalid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/1.1.1")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+    }
+
+    #[tokio::test]
+    async fn ip_ipv6_valid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/2606:4700:4700::1111")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK)
+    }
+
+    #[tokio::test]
+    async fn ip_ipv6_invalid() {
+        init_mmdb().await;
+        let app = Router::new()
+            .route("/ip/{ip_address}", get(endpoint_get_ip))
+            .into_service::<Body>();
+        let request = Request::builder()
+            .method(http::Method::GET)
+            .header("Accept", "*/*")
+            .uri("/ip/2606:4700:4700:")
+            .body(Body::empty())
+            .unwrap();
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::BAD_REQUEST)
     }
