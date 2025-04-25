@@ -3,6 +3,8 @@
 ip-location-rs is a RESTful batteries-included IP information lookup microservice made with Rust.
 It’s designed for high performance, easy deployment, and minimal dependencies.
 
+**IMPORTANT: THIS MICROSERVICE IS MEANT TO BE DEPLOYED WITHIN A REVERSE PROXY. DEPLOYING
+IT DIRECTLY MAKES IT VULNERABLE TO [HTTP HEADER INJECTION](https://en.wikipedia.org/wiki/HTTP_header_injection), WHICH IS CURRENTLY NOT (AND WILL NOT BE) SUPPORTED ANYTIME IN THE FUTURE**
 
 ## Installation
 
@@ -22,18 +24,11 @@ cargo build --release
 
 For more information, please see the [openapi.yaml file spec](https://github.com/neeythann/ip-location-rs/blob/main/openapi.yaml)
 
-This microservice only has one production-ready endpoint at the root (`/`) which accepts an `ip` query paramter
-- If no `ip` query paramter is provided, the server will attempt to use:
-  - The client's public IP address, if available;
-  - or the `X-Forwarded-For` header (if present).
-- Else would return a HTTP 415 error
-
-### Experimental Endpoints
-
-To enable experimental endpoints, pass the `--experimental` flag when executing the program
+`GET /` - returns a JSON response containing the current user's IP address AS and country details  
 
 `GET /AS/{asn_number}` - returns a JSON response containing the ASN's details and associated networks  
-`GET /country/{country_code}` - returns a JSON response containing the country details and associated networks
+
+`GET /country/{country_code}` - returns a JSON response containing the country details and associated networks  
 
 ### Sample Usage
 
