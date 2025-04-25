@@ -349,16 +349,14 @@ async fn main() {
 
     init_mmdb().await;
 
-    let mut routes = Router::new()
+    let routes = Router::new()
         .route("/", get(index))
-        .route("/ip/{ip_address}", get(endpoint_get_ip));
-    if args.experimental {
-        routes = routes.merge(
-            Router::new()
-                .route("/AS/{asn}", get(endpoint_get_asn))
-                .route("/country/{country_code}", get(endpoint_get_country)),
-        );
-    }
+        .route("/ip/{ip_address}", get(endpoint_get_ip))
+        .route("/AS/{asn}", get(endpoint_get_asn))
+        .route("/country/{country_code}", get(endpoint_get_country));
+
+    // placeholder for now
+    if args.experimental {}
     let listener = tokio::net::TcpListener::bind(args.listen).await.unwrap();
     axum::serve(
         listener,
