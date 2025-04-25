@@ -3,6 +3,7 @@
 ip-location-rs is a RESTful batteries-included IP information lookup microservice made with Rust.
 It’s designed for high performance, easy deployment, and minimal dependencies.
 
+**IMPORTANT: THIS MICROSERVICE IS MEANT TO BE DEPLOYED WITHIN A REVERSE PROXY. DEPLOYING IT DIRECTLY MAKES IT VULNERABLE TO [HTTP HEADER INJECTION](https://en.wikipedia.org/wiki/HTTP_header_injection), WHICH IS CURRENTLY NOT (AND WILL NOT BE) SUPPORTED ANYTIME IN THE FUTURE**
 
 ## Installation
 
