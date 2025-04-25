@@ -62,7 +62,6 @@ struct RequestedAddress {
 }
 
 impl RequestedAddress {
-    #[warn(dead_code)]
     pub fn default(ip: IpAddr) -> Self {
         RequestedAddress {
             ip,
@@ -71,7 +70,6 @@ impl RequestedAddress {
         }
     }
 
-    #[warn(dead_code)]
     pub fn new(ip: IpAddr, country: Option<Country>, asn: Option<Asn>) -> Self {
         let mut rtn = RequestedAddress::default(ip);
         rtn.country = country;
@@ -131,18 +129,18 @@ async fn index(
 
     match maybe_ip {
         Some(ip) => {
-            return Ok(Json(RequestedAddress {
+            return Ok(Json(RequestedAddress::new(
                 ip,
-                country: get_country(ip),
-                asn: get_asn(ip),
-            }));
+                get_country(ip),
+                get_asn(ip),
+            )));
         }
         None => {
-            return Ok(Json(RequestedAddress {
-                ip: addr.ip(),
-                country: get_country(addr.ip()),
-                asn: get_asn(addr.ip()),
-            }));
+            return Ok(Json(RequestedAddress::new(
+                addr.ip(),
+                get_country(addr.ip()),
+                get_asn(addr.ip()),
+            )));
         }
     }
 }
