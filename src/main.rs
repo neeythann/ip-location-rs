@@ -120,9 +120,9 @@ async fn index(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Result<Json<RequestedAddress>, StatusCode> {
-    // NOTE: THIS MICROSERVICE IS MEANT TO BE DEPLOYED BEHIND A PROXY
-    // DEPLOYING IT DIRECTLY MAKES IT VULNERABLE TO HTTP HEADER INJECTION
-    // WHICH IS NOT (AND WILL NOT BE) SUPPORTED IN THE FUTURE
+    // SECURITY CONSIDERATION: This microservice is meant to be deployed behind
+    // a reverse proxy. Deploying it direcly makes it vulnerable to HTTP Header Injection
+    // attacks, which is not (and will not be) supported anytime in the future
     let maybe_ip: Option<IpAddr> = match headers.get("X-Real-IP") {
         Some(ip) => Some(ip.to_str().unwrap().parse().unwrap()),
         None => None,
