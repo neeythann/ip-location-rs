@@ -3,10 +3,10 @@
 ip-location-rs is a RESTful batteries-included IP information lookup microservice made with Rust.
 It’s designed for high performance, easy deployment, and minimal dependencies.
 
-**IMPORTANT: THIS MICROSERVICE IS MEANT TO BE DEPLOYED WITHIN A REVERSE PROXY. DEPLOYING
-IT DIRECTLY MAKES IT VULNERABLE TO [HTTP HEADER INJECTION](https://en.wikipedia.org/wiki/HTTP_header_injection), WHICH IS CURRENTLY NOT (AND WILL NOT BE) SUPPORTED ANYTIME IN THE FUTURE**
 
 ## Installation
+
+We provide a [docker image at DockerHub](https://hub.docker.com/repository/docker/neeythann/ip-location-rs)
 
 `docker run -d -p 8000:8000 neeythann/ip-location-rs`
 
@@ -25,6 +25,8 @@ cargo build --release
 For more information, please see the [openapi.yaml file spec](https://github.com/neeythann/ip-location-rs/blob/main/openapi.yaml)
 
 `GET /` - returns a JSON response containing the current user's IP address AS and country details  
+
+`GET /ip/{ip_address}` - returns a JSON response containing the requested IP address AS and country details
 
 `GET /AS/{asn_number}` - returns a JSON response containing the ASN's details and associated networks  
 
