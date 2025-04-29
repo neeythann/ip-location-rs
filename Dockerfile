@@ -3,7 +3,7 @@ WORKDIR /usr/src/myapp
 COPY . .
 RUN cargo install --path .
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 RUN adduser --disabled-password --gecos '' app
 RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 USER app
