@@ -1,0 +1,40 @@
+# https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ilrs-deployment
+  labels:
+    app: ilrs-deployment
+spec:
+  selector:
+    matchLabels:
+      app: ilrs-deployment
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container:  ilrs-deployment
+      labels:
+        app: ilrs-deployment
+    spec:
+      containers:
+      - name: ilrs-deployment
+        image: neeythann/ip-location-rs:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 80
+          name: ilrs-http-port
+      restartPolicy: Always
+---
+
