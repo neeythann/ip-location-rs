@@ -35,7 +35,7 @@ struct Args {
     #[arg(
         short,
         long,
-        default_value = "0.0.0.0:8000",
+        default_value = "0.0.0.0:80",
         help = "A socket to listen for the server"
     )]
     listen: SocketAddr,
