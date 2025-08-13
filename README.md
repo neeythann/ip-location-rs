@@ -6,9 +6,15 @@ It’s designed for high performance, easy deployment, and minimal dependencies.
 
 ## Installation
 
-We provide a [docker image at DockerHub](https://hub.docker.com/repository/docker/neeythann/ip-location-rs)
+### Container Image
+
+We provide a [docker image at DockerHub](https://hub.docker.com/r/neeythann/ip-location-rs)
 
 `docker run -d -p 8000:8000 neeythann/ip-location-rs`
+
+### Kubernetes
+
+A sample ArgoCD Kubernetes application, deployment, and service manifests can be found in the `manifests/` folder.
 
 ## Building from Source
 
