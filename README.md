@@ -41,7 +41,7 @@ For more information, please see the [openapi.yaml file spec](https://github.com
 ### Sample Usage
 
 ```bash
-curl -s http://localhost:8000/?ip=1.1.1.1 -H 'X-Forwarded-For: 1.1.1.1' | jq
+curl -s http://localhost:80/ -H 'X-Forwarded-For: 1.1.1.1' | jq
 ```
 
 Which outputs:
