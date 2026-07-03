@@ -13,6 +13,6 @@ COPY --from=builder /usr/src/myapp/run.sh .
 COPY --from=builder /usr/src/myapp/DBIP-LICENSE .
 COPY --from=builder /usr/src/myapp/ROUTEVIEWS-LICENSE .
 
-EXPOSE 8000
+EXPOSE 80
 CMD ["bash", "./run.sh"]
 
