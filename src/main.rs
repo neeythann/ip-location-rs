@@ -42,6 +42,7 @@ async fn main() {
     tracing::event!(tracing::Level::INFO, "main");
 
     db::init_mmdb().await;
+    db::init_country_cache().await;
 
     let routes = Router::new()
         .route("/", get(index))
@@ -271,6 +272,7 @@ mod tests {
     #[tokio::test]
     async fn country_valid() {
         init_mmdb().await;
+        crate::db::init_country_cache().await;
         let app = Router::new()
             .route("/country/{country_code}", get(endpoint_get_country))
             .into_service::<Body>();

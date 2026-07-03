@@ -9,7 +9,7 @@ pub struct Asn {
     pub modifications: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Country {
     pub country_code: String,
 }
@@ -54,7 +54,7 @@ impl AsnResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CountryResponse {
     pub country: Country,
     pub networks: Option<Vec<String>>,
