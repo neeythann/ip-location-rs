@@ -3,36 +3,57 @@ openapi: 3.1.0
 info:
   title: ip-location-rs
   description: IP to Location REST API server made with axum.rs
-  version: 0.1.0
+  version: 0.4.0
 
 paths:
   /:
     get:
+      summary: Get the location of the requester's IP
+      description: >
+        Returns the location of the requester's IP. Uses the `X-Real-IP`
+        header when present, otherwise falls back to the connected socket
+        address.
       parameters:
-        - in: query
-          name: ip
+        - in: header
+          name: X-Real-IP
           schema:
-            type: string 
+            type: string
           required: false
-          description: An IPv4/IPv6 address to query. Uses the client's IP if query parameter is null.
-        - in: cookie
-          name: X-Forwarded-For
-          schema:
-            type: IP address
-          required: false
-          description: The client's IP behind a reverse proxy
-      summary: Returns the location of the specified IP address
+          description: The client's IP address, typically set by a reverse proxy.
       responses:
         "200":
-          description: A JSON dictionary of the specified IP location
+          description: A JSON object containing the requester's IP location.
           content:
             application/json:
               schema:
-                type: object
-                items:
-                  type: string
+                $ref: '#/components/schemas/RequestedAddress'
+
+  /ip/{ip_address}:
+    get:
+      summary: Get the location of a specific IP address
+      description: >
+        Returns the location for a supplied IPv4 or IPv6 address. Private,
+        loopback, unspecified, broadcast, multicast, unique-local, and
+        unicast-link-local addresses are rejected with a 415 response.
+      parameters:
+        - name: ip_address
+          in: path
+          required: true
+          description: An IPv4 or IPv6 address.
+          schema:
+            type: string
+            example: 1.1.1.1
+      responses:
+        "200":
+          description: A JSON object containing the IP location.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestedAddress'
+        "400":
+          description: Bad request (e.g., the supplied value is not a valid IP address).
         "415":
-          description: Invalid request. 
+          description: Unsupported media type (e.g., the supplied IP is private, loopback, unspecified, broadcast, multicast, unique-local, or unicast-link-local).
 
   /AS/{asn}:
     get:
@@ -52,24 +73,10 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  asn:
-                    type: object
-                    properties:
-                      autonomous_system_number:
-                        type: integer
-                        example: 12345
-                      autonomous_system_organization:
-                        type: string
-                        example: Example Organization
-                  networks:
-                    type: array
-                    items:
-                      type: string
-                      example: "192.0.2.0/24"
+                $ref: '#/components/schemas/AsnResponse'
         "400":
           description: Bad request (e.g., ASN not valid).
+
   /country/{country_code}:
     get:
       summary: Get Country Information
@@ -78,7 +85,7 @@ paths:
         - name: country_code
           in: path
           required: true
-          description: ISO 3166-1 alpha-2 country code.
+          description: ISO 3166-1 alpha-2 country code (two uppercase letters).
           schema:
             type: string
             example: US
@@ -88,18 +95,67 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  country:
-                    type: object
-                    properties:
-                      country_code:
-                        type: string
-                        example: US
-                  networks:
-                    type: array
-                    items:
-                      type: string
-                      example: "192.0.2.0/24"
+                $ref: '#/components/schemas/CountryResponse'
         "400":
           description: Bad request (e.g., country code not valid).
+
+components:
+  schemas:
+    RequestedAddress:
+      type: object
+      properties:
+        ip:
+          type: string
+          description: The requested IP address (IPv4 or IPv6).
+          example: 1.1.1.1
+        country:
+          oneOf:
+            - $ref: '#/components/schemas/Country'
+            - type: "null"
+        asn:
+          oneOf:
+            - $ref: '#/components/schemas/Asn'
+            - type: "null"
+
+    Asn:
+      type: object
+      properties:
+        autonomous_system_number:
+          type: integer
+          example: 12345
+        autonomous_system_organization:
+          type: string
+          example: Example Organization
+        license:
+          type: ["string", "null"]
+        modifications:
+          type: ["string", "null"]
+
+    Country:
+      type: object
+      properties:
+        country_code:
+          type: string
+          example: US
+
+    AsnResponse:
+      type: object
+      properties:
+        asn:
+          $ref: '#/components/schemas/Asn'
+        networks:
+          type: ["array", "null"]
+          items:
+            type: string
+            example: "192.0.2.0/24"
+
+    CountryResponse:
+      type: object
+      properties:
+        country:
+          $ref: '#/components/schemas/Country'
+        networks:
+          type: ["array", "null"]
+          items:
+            type: string
+            example: "192.0.2.0/24"
