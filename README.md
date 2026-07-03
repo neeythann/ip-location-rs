@@ -10,7 +10,7 @@ It’s designed for high performance, easy deployment, and minimal dependencies.
 
 We provide a [docker image at DockerHub](https://hub.docker.com/r/neeythann/ip-location-rs)
 
-`docker run -d -p 8000:8000 neeythann/ip-location-rs`
+`docker run -d -p 8000:80 neeythann/ip-location-rs`
 
 ### Kubernetes
 
@@ -41,7 +41,7 @@ For more information, please see the [openapi.yaml file spec](https://github.com
 ### Sample Usage
 
 ```bash
-curl -s http://localhost:80/ -H 'X-Forwarded-For: 1.1.1.1' | jq
+curl -s http://localhost:80/ -H 'X-Real-IP: 1.1.1.1' | jq
 ```
 
 Which outputs:
