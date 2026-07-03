@@ -6,7 +6,7 @@ use axum::{
 };
 use clap::Parser;
 use ipnetwork::IpNetwork;
-use maxminddb::{Reader, Within};
+use maxminddb::Reader;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Error,
@@ -92,10 +92,11 @@ pub fn get_country(ip: IpAddr) -> Option<Country> {
         IpAddr::V4(_) => IPV4_COUNTRY.get().unwrap(),
         IpAddr::V6(_) => IPV6_COUNTRY.get().unwrap(),
     };
-    match reader.lookup(ip).expect("Invalid IP address!") {
-        Some(country) => Some(country),
-        None => None,
-    }
+    reader
+        .lookup(ip)
+        .expect("Invalid IP address!")
+        .decode::<Country>()
+        .unwrap()
 }
 
 pub fn get_asn(ip: IpAddr) -> Option<Asn> {
@@ -103,7 +104,12 @@ pub fn get_asn(ip: IpAddr) -> Option<Asn> {
         IpAddr::V4(_) => IPV4_ASN.get().unwrap(),
         IpAddr::V6(_) => IPV6_ASN.get().unwrap(),
     };
-    match reader.lookup::<Asn>(ip).expect("Invalid IP address!") {
+    match reader
+        .lookup(ip)
+        .expect("Invalid IP address!")
+        .decode::<Asn>()
+        .unwrap()
+    {
         Some(mut asn) => {
             asn.license = Some(String::from("CC BY 4.0 by RouteViews and DB-IP"));
             asn.modifications = Some(String::from(
@@ -172,26 +178,42 @@ async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<Json<AsnResponse>, S
 
     let mut asn_info: Option<Asn> = None;
 
-    let mut iter: Within<Asn, _> = IPV4_ASN.get().unwrap().within(network4).unwrap();
+    let mut iter = IPV4_ASN
+        .get()
+        .unwrap()
+        .within(network4, Default::default())
+        .unwrap();
     while let Some(next) = iter.next() {
-        let item = next.unwrap();
-        if item.info.autonomous_system_number != asn {
+        let lookup = next.unwrap();
+        let asn_data: Asn = match lookup.decode() {
+            Ok(Some(data)) => data,
+            _ => continue,
+        };
+        if asn_data.autonomous_system_number != asn {
             continue;
         }
 
         if asn_info.is_none() {
-            asn_info = Some(item.info.clone());
+            asn_info = Some(asn_data.clone());
         }
-        net.push(item.ip_net.to_string());
+        net.push(lookup.network().unwrap().to_string());
         yield_now().await;
     }
-    iter = IPV6_ASN.get().unwrap().within(network6).unwrap();
+    iter = IPV6_ASN
+        .get()
+        .unwrap()
+        .within(network6, Default::default())
+        .unwrap();
     while let Some(next) = iter.next() {
-        let item = next.unwrap();
-        if item.info.autonomous_system_number != asn {
+        let lookup = next.unwrap();
+        let asn_data: Asn = match lookup.decode() {
+            Ok(Some(data)) => data,
+            _ => continue,
+        };
+        if asn_data.autonomous_system_number != asn {
             continue;
         }
-        net.push(item.ip_net.to_string());
+        net.push(lookup.network().unwrap().to_string());
         yield_now().await;
     }
 
@@ -222,28 +244,44 @@ async fn endpoint_get_country(
     let mut country_info: Option<Country> = None;
 
     let network4: IpNetwork = "0.0.0.0/0".parse().unwrap();
-    let mut iter: Within<Country, _> = IPV4_COUNTRY.get().unwrap().within(network4).unwrap();
+    let mut iter = IPV4_COUNTRY
+        .get()
+        .unwrap()
+        .within(network4, Default::default())
+        .unwrap();
     while let Some(next) = iter.next() {
-        let item = next.unwrap();
-        if item.info.country_code != country_code {
+        let lookup = next.unwrap();
+        let country_data: Country = match lookup.decode() {
+            Ok(Some(data)) => data,
+            _ => continue,
+        };
+        if country_data.country_code != country_code {
             continue;
         }
 
         if country_info.is_none() {
-            country_info = Some(item.info);
+            country_info = Some(country_data);
         }
-        net.push(item.ip_net.to_string());
+        net.push(lookup.network().unwrap().to_string());
         yield_now().await;
     }
 
     let network6: IpNetwork = "::0/0".parse().unwrap();
-    iter = IPV6_COUNTRY.get().unwrap().within(network6).unwrap();
+    iter = IPV6_COUNTRY
+        .get()
+        .unwrap()
+        .within(network6, Default::default())
+        .unwrap();
     while let Some(next) = iter.next() {
-        let item = next.unwrap();
-        if item.info.country_code != country_code {
+        let lookup = next.unwrap();
+        let country_data: Country = match lookup.decode() {
+            Ok(Some(data)) => data,
+            _ => continue,
+        };
+        if country_data.country_code != country_code {
             continue;
         }
-        net.push(item.ip_net.to_string());
+        net.push(lookup.network().unwrap().to_string());
         yield_now().await;
     }
 
