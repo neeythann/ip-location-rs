@@ -1,7 +1,8 @@
 use crate::db::{get_asn, get_country};
 use crate::models::RequestedAddress;
+use crate::ProxyType;
 use axum::{
-    Json,
+    Extension, Json,
     extract::{ConnectInfo, Path},
     http::{HeaderMap, StatusCode},
 };
@@ -9,28 +10,25 @@ use std::net::{IpAddr, SocketAddr};
 
 // SECURITY CONSIDERATION: This microservice is meant to be deployed behind
 // a reverse proxy. Deploying it direcly makes it vulnerable to HTTP Header Injection
-// attacks, which is not (and will not be) supported anytime in the future
+// attacks, which is not (and will not be) supported anytime in the future.
+//
+// Which header (if any) is trusted for the client's real IP is controlled by
+// the `--proxy` CLI flag (see `ProxyType` in `main.rs`). When the selected
+// header is absent or malformed the handler falls back to the connected
+// socket address rather than erroring, so a misconfigured proxy never turns
+// a successful lookup into a 4xx/5xx.
 pub async fn index(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Extension(proxy): Extension<ProxyType>,
     headers: HeaderMap,
 ) -> Result<Json<RequestedAddress>, StatusCode> {
-    let maybe_ip: Option<IpAddr> = match headers.get("X-Real-IP") {
-        Some(ip) => Some(ip.to_str().unwrap().parse().unwrap()),
-        None => None,
-    };
+    let ip = proxy.client_ip(&headers).unwrap_or_else(|| addr.ip());
 
-    match maybe_ip {
-        Some(ip) => Ok(Json(RequestedAddress::new(
-            ip,
-            get_country(ip),
-            get_asn(ip),
-        ))),
-        None => Ok(Json(RequestedAddress::new(
-            addr.ip(),
-            get_country(addr.ip()),
-            get_asn(addr.ip()),
-        ))),
-    }
+    Ok(Json(RequestedAddress::new(
+        ip,
+        get_country(ip),
+        get_asn(ip),
+    )))
 }
 
 pub async fn endpoint_get_ip(Path(ip): Path<IpAddr>) -> Result<Json<RequestedAddress>, StatusCode> {
