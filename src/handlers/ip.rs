@@ -1,6 +1,6 @@
+use crate::ProxyType;
 use crate::db::{get_asn, get_country};
 use crate::models::RequestedAddress;
-use crate::ProxyType;
 use axum::{
     Extension, Json,
     extract::{ConnectInfo, Path},

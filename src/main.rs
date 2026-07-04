@@ -2,10 +2,7 @@ pub mod db;
 pub mod handlers;
 pub mod models;
 
-use axum::{
-    Extension, Router, routing::get,
-    http::HeaderMap,
-};
+use axum::{Extension, Router, http::HeaderMap, routing::get};
 use clap::{Parser, ValueEnum};
 use handlers::{
     asn::endpoint_get_asn,
@@ -118,11 +115,11 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
+    use crate::ProxyType;
     use crate::db::init_mmdb;
     use crate::handlers::asn::endpoint_get_asn;
     use crate::handlers::country::endpoint_get_country;
     use crate::handlers::ip::{endpoint_get_ip, index};
-    use crate::ProxyType;
     use axum::{
         Extension, Router,
         body::Body,
