@@ -1,13 +1,14 @@
 use crate::db::{IPV4_ASN, IPV6_ASN};
+use crate::handlers::PrettyJson;
 use crate::models::{Asn, AsnResponse};
-use axum::{Json, extract::Path, http::StatusCode};
+use axum::{extract::Path, http::StatusCode};
 use ipnetwork::IpNetwork;
 use tokio::task::yield_now;
 
 // TODO(neeythann):
 // - validate Path(asn)
 // - cache this result at startup
-pub async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<Json<AsnResponse>, StatusCode> {
+pub async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<PrettyJson<AsnResponse>, StatusCode> {
     let network4: IpNetwork = "0.0.0.0/0".parse().unwrap();
     let network6: IpNetwork = "::0/0".parse().unwrap();
     let mut net: Vec<String> = vec![];
@@ -57,5 +58,5 @@ pub async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<Json<AsnResponse
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    Ok(Json(AsnResponse::new(asn_info.unwrap(), Some(net))))
+    Ok(PrettyJson(AsnResponse::new(asn_info.unwrap(), Some(net))))
 }
