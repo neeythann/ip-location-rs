@@ -24,17 +24,32 @@ spec:
       containers:
       - name: ilrs-deployment
         image: neeythann/ip-location-rs:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: 100m
             memory: 100Mi
           limits:
-            cpu: 100m
             memory: 100Mi
         ports:
         - containerPort: 80
           name: ilrs-http-port
-      restartPolicy: Always
+        readinessProbe:
+          httpGet:
+            path: /ip/1.1.1.1
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /ip/1.1.1.1
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
 ---
 
