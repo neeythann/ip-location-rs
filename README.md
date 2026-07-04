@@ -12,6 +12,8 @@ We provide a [docker image at DockerHub](https://hub.docker.com/r/neeythann/ip-l
 
 `docker run -d -p 8000:80 neeythann/ip-location-rs`
 
+The published image is a multi-architecture manifest supporting `linux/amd64` and `linux/arm64`, so Docker automatically pulls the matching architecture on x86_64 hosts and 64-bit ARM hosts (e.g. AWS Graviton, Apple Silicon, Raspberry Pi 4/5 running a 64-bit OS).
+
 ### Kubernetes
 
 A sample ArgoCD Kubernetes application, deployment, and service manifests can be found in the `manifests/` folder.
