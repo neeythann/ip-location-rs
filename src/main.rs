@@ -75,10 +75,12 @@ struct Args {
         short,
         long,
         value_enum,
+        env = "PROXY_TYPE",
         default_value_t = ProxyType::XRealIp,
         help = "Which request header to trust for the client's real IP on the \
                 index endpoint (also accepts `none` to ignore headers and use \
-                the socket address)"
+                the socket address). Can also be set via the PROXY_TYPE \
+                environment variable."
     )]
     proxy: ProxyType,
 }
