@@ -116,6 +116,8 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Asn'
             - type: "null"
+        notes:
+          $ref: '#/components/schemas/Notes'
 
     Asn:
       type: object
@@ -126,10 +128,6 @@ components:
         autonomous_system_organization:
           type: string
           example: Example Organization
-        license:
-          type: ["string", "null"]
-        modifications:
-          type: ["string", "null"]
 
     Country:
       type: object
@@ -137,6 +135,20 @@ components:
         country_code:
           type: string
           example: US
+
+    Notes:
+      type: object
+      description: >
+        Attribution metadata for the underlying MMDB data sources. Present on
+        every response so consumers always see the same `notes` shape
+        regardless of endpoint or whether the `asn` field is populated.
+      properties:
+        license:
+          type: ["string", "null"]
+          example: "CC BY 4.0 by RouteViews and DB-IP"
+        modifications:
+          type: ["string", "null"]
+          example: "https://github.com/sapics/ip-location-db/blob/main/asn/MODIFICATIONS"
 
     AsnResponse:
       type: object
@@ -148,6 +160,8 @@ components:
           items:
             type: string
             example: "192.0.2.0/24"
+        notes:
+          $ref: '#/components/schemas/Notes'
 
     CountryResponse:
       type: object
@@ -159,3 +173,5 @@ components:
           items:
             type: string
             example: "192.0.2.0/24"
+        notes:
+          $ref: '#/components/schemas/Notes'

@@ -1,7 +1,19 @@
-use crate::models::{Asn, Country, CountryResponse};
+use crate::models::{Asn, Country, CountryResponse, Notes};
 use maxminddb::Reader;
 use std::{collections::HashMap, fmt::Error, net::IpAddr};
 use tokio::sync::OnceCell;
+
+/// Attribution metadata for the underlying MMDB data sources. Returned on every
+/// API response so consumers always see the same `notes` shape regardless of
+/// endpoint or whether the `asn` field is populated.
+pub fn notes() -> Notes {
+    Notes {
+        license: Some(String::from("CC BY 4.0 by RouteViews and DB-IP")),
+        modifications: Some(String::from(
+            "https://github.com/sapics/ip-location-db/blob/main/asn/MODIFICATIONS",
+        )),
+    }
+}
 
 pub static IPV4_COUNTRY: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
 pub static IPV4_ASN: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
@@ -37,21 +49,11 @@ pub fn get_asn(ip: IpAddr) -> Option<Asn> {
         IpAddr::V4(_) => IPV4_ASN.get().unwrap(),
         IpAddr::V6(_) => IPV6_ASN.get().unwrap(),
     };
-    match reader
+    reader
         .lookup(ip)
         .expect("Invalid IP address!")
         .decode::<Asn>()
         .unwrap()
-    {
-        Some(mut asn) => {
-            asn.license = Some(String::from("CC BY 4.0 by RouteViews and DB-IP"));
-            asn.modifications = Some(String::from(
-                "https://github.com/sapics/ip-location-db/blob/main/asn/MODIFICATIONS",
-            ));
-            Some(asn)
-        }
-        None => None,
-    }
 }
 
 pub async fn init_mmdb() {
@@ -98,6 +100,7 @@ pub async fn init_country_cache() {
                     .or_insert_with(|| CountryResponse {
                         country: country_data,
                         networks: Some(vec![network]),
+                        notes: notes(),
                     });
             }
 
@@ -124,6 +127,7 @@ pub async fn init_country_cache() {
                     .or_insert_with(|| CountryResponse {
                         country: country_data,
                         networks: Some(vec![network]),
+                        notes: notes(),
                     });
             }
 
