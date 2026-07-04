@@ -8,7 +8,9 @@ use tokio::task::yield_now;
 // TODO(neeythann):
 // - validate Path(asn)
 // - cache this result at startup
-pub async fn endpoint_get_asn(Path(asn): Path<usize>) -> Result<PrettyJson<AsnResponse>, StatusCode> {
+pub async fn endpoint_get_asn(
+    Path(asn): Path<usize>,
+) -> Result<PrettyJson<AsnResponse>, StatusCode> {
     let network4: IpNetwork = "0.0.0.0/0".parse().unwrap();
     let network6: IpNetwork = "::0/0".parse().unwrap();
     let mut net: Vec<String> = vec![];
