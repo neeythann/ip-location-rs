@@ -96,6 +96,7 @@ async fn main() {
 
     db::init_mmdb().await;
     db::init_country_cache().await;
+    db::init_asn_cache().await;
 
     let routes = Router::new()
         .route("/", get(index))
@@ -436,6 +437,7 @@ mod tests {
     #[tokio::test]
     async fn asn_valid() {
         init_mmdb().await;
+        crate::db::init_asn_cache().await;
         let app = Router::new()
             .route("/AS/{asn_number}", get(endpoint_get_asn))
             .into_service::<Body>();
@@ -453,6 +455,7 @@ mod tests {
     #[tokio::test]
     async fn asn_invalid_number() {
         init_mmdb().await;
+        crate::db::init_asn_cache().await;
         let app = Router::new()
             .route("/AS/{asn_number}", get(endpoint_get_asn))
             .into_service::<Body>();
@@ -470,6 +473,7 @@ mod tests {
     #[tokio::test]
     async fn asn_invalid_type() {
         init_mmdb().await;
+        crate::db::init_asn_cache().await;
         let app = Router::new()
             .route("/AS/{asn_number}", get(endpoint_get_asn))
             .into_service::<Body>();

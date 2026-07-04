@@ -1,4 +1,4 @@
-use crate::models::{Asn, Country, CountryResponse, Notes};
+use crate::models::{Asn, AsnResponse, Country, CountryResponse, Notes};
 use maxminddb::Reader;
 use std::{collections::HashMap, fmt::Error, net::IpAddr};
 use tokio::sync::OnceCell;
@@ -22,6 +22,7 @@ pub static IPV6_COUNTRY: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
 pub static IPV6_ASN: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
 
 pub static COUNTRY_CACHE: OnceCell<HashMap<String, CountryResponse>> = OnceCell::const_new();
+pub static ASN_CACHE: OnceCell<HashMap<usize, AsnResponse>> = OnceCell::const_new();
 
 async fn init_reader(path: impl AsRef<std::path::Path>) -> Result<Reader<Vec<u8>>, Error> {
     let content = tokio::fs::read(path).await.unwrap();
@@ -126,6 +127,70 @@ pub async fn init_country_cache() {
                     })
                     .or_insert_with(|| CountryResponse {
                         country: country_data,
+                        networks: Some(vec![network]),
+                        notes: notes(),
+                    });
+            }
+
+            cache
+        })
+        .await;
+}
+
+pub async fn init_asn_cache() {
+    ASN_CACHE
+        .get_or_init(|| async {
+            let mut cache: HashMap<usize, AsnResponse> = HashMap::new();
+
+            let network4: ipnetwork::IpNetwork = "0.0.0.0/0".parse().unwrap();
+            let mut iter = IPV4_ASN
+                .get()
+                .unwrap()
+                .within(network4, Default::default())
+                .unwrap();
+            while let Some(next) = iter.next() {
+                let lookup = next.unwrap();
+                let asn_data: Asn = match lookup.decode() {
+                    Ok(Some(data)) => data,
+                    _ => continue,
+                };
+                let network = lookup.network().unwrap().to_string();
+                cache
+                    .entry(asn_data.autonomous_system_number)
+                    .and_modify(|resp| {
+                        if let Some(nets) = resp.networks.as_mut() {
+                            nets.push(network.clone());
+                        }
+                    })
+                    .or_insert_with(|| AsnResponse {
+                        asn: asn_data,
+                        networks: Some(vec![network]),
+                        notes: notes(),
+                    });
+            }
+
+            let network6: ipnetwork::IpNetwork = "::0/0".parse().unwrap();
+            iter = IPV6_ASN
+                .get()
+                .unwrap()
+                .within(network6, Default::default())
+                .unwrap();
+            while let Some(next) = iter.next() {
+                let lookup = next.unwrap();
+                let asn_data: Asn = match lookup.decode() {
+                    Ok(Some(data)) => data,
+                    _ => continue,
+                };
+                let network = lookup.network().unwrap().to_string();
+                cache
+                    .entry(asn_data.autonomous_system_number)
+                    .and_modify(|resp| {
+                        if let Some(nets) = resp.networks.as_mut() {
+                            nets.push(network.clone());
+                        }
+                    })
+                    .or_insert_with(|| AsnResponse {
+                        asn: asn_data,
                         networks: Some(vec![network]),
                         notes: notes(),
                     });
