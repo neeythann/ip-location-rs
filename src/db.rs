@@ -1,6 +1,6 @@
-use crate::models::{Asn, Country};
+use crate::models::{Asn, Country, CountryResponse};
 use maxminddb::Reader;
-use std::{fmt::Error, net::IpAddr};
+use std::{collections::HashMap, fmt::Error, net::IpAddr};
 use tokio::sync::OnceCell;
 
 pub static IPV4_COUNTRY: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
@@ -8,6 +8,8 @@ pub static IPV4_ASN: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
 
 pub static IPV6_COUNTRY: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
 pub static IPV6_ASN: OnceCell<Reader<Vec<u8>>> = OnceCell::const_new();
+
+pub static COUNTRY_CACHE: OnceCell<HashMap<String, CountryResponse>> = OnceCell::const_new();
 
 async fn init_reader(path: impl AsRef<std::path::Path>) -> Result<Reader<Vec<u8>>, Error> {
     let content = tokio::fs::read(path).await.unwrap();
@@ -65,5 +67,67 @@ pub async fn init_mmdb() {
         .await;
     IPV6_ASN
         .get_or_init(|| async { init_reader("asn-ipv6.mmdb").await.unwrap() })
+        .await;
+}
+
+pub async fn init_country_cache() {
+    COUNTRY_CACHE
+        .get_or_init(|| async {
+            let mut cache: HashMap<String, CountryResponse> = HashMap::new();
+
+            let network4: ipnetwork::IpNetwork = "0.0.0.0/0".parse().unwrap();
+            let mut iter = IPV4_COUNTRY
+                .get()
+                .unwrap()
+                .within(network4, Default::default())
+                .unwrap();
+            while let Some(next) = iter.next() {
+                let lookup = next.unwrap();
+                let country_data: Country = match lookup.decode() {
+                    Ok(Some(data)) => data,
+                    _ => continue,
+                };
+                let network = lookup.network().unwrap().to_string();
+                cache
+                    .entry(country_data.country_code.clone())
+                    .and_modify(|resp| {
+                        if let Some(nets) = resp.networks.as_mut() {
+                            nets.push(network.clone());
+                        }
+                    })
+                    .or_insert_with(|| CountryResponse {
+                        country: country_data,
+                        networks: Some(vec![network]),
+                    });
+            }
+
+            let network6: ipnetwork::IpNetwork = "::0/0".parse().unwrap();
+            iter = IPV6_COUNTRY
+                .get()
+                .unwrap()
+                .within(network6, Default::default())
+                .unwrap();
+            while let Some(next) = iter.next() {
+                let lookup = next.unwrap();
+                let country_data: Country = match lookup.decode() {
+                    Ok(Some(data)) => data,
+                    _ => continue,
+                };
+                let network = lookup.network().unwrap().to_string();
+                cache
+                    .entry(country_data.country_code.clone())
+                    .and_modify(|resp| {
+                        if let Some(nets) = resp.networks.as_mut() {
+                            nets.push(network.clone());
+                        }
+                    })
+                    .or_insert_with(|| CountryResponse {
+                        country: country_data,
+                        networks: Some(vec![network]),
+                    });
+            }
+
+            cache
+        })
         .await;
 }
