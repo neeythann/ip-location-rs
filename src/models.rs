@@ -5,8 +5,6 @@ use std::net::IpAddr;
 pub struct Asn {
     pub autonomous_system_number: usize,
     pub autonomous_system_organization: String,
-    pub license: Option<String>,
-    pub modifications: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -14,11 +12,18 @@ pub struct Country {
     pub country_code: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Notes {
+    pub license: Option<String>,
+    pub modifications: Option<String>,
+}
+
 #[derive(Serialize)]
 pub struct RequestedAddress {
     pub ip: IpAddr,
     pub country: Option<Country>,
     pub asn: Option<Asn>,
+    pub notes: Notes,
 }
 
 impl RequestedAddress {
@@ -27,6 +32,7 @@ impl RequestedAddress {
             ip,
             country: None,
             asn: None,
+            notes: crate::db::notes(),
         }
     }
 
@@ -42,6 +48,7 @@ impl RequestedAddress {
 pub struct AsnResponse {
     pub asn: Asn,
     pub networks: Option<Vec<String>>,
+    pub notes: Notes,
 }
 
 impl AsnResponse {
@@ -50,7 +57,11 @@ impl AsnResponse {
     }
 
     pub fn new(asn: Asn, networks: Option<Vec<String>>) -> Self {
-        AsnResponse { asn, networks }
+        AsnResponse {
+            asn,
+            networks,
+            notes: crate::db::notes(),
+        }
     }
 }
 
@@ -58,4 +69,5 @@ impl AsnResponse {
 pub struct CountryResponse {
     pub country: Country,
     pub networks: Option<Vec<String>>,
+    pub notes: Notes,
 }

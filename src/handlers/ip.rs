@@ -41,11 +41,11 @@ pub async fn endpoint_get_ip(Path(ip): Path<IpAddr>) -> Result<Json<RequestedAdd
             {
                 return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
             }
-            Ok(Json(RequestedAddress {
+            Ok(Json(RequestedAddress::new(
                 ip,
-                country: get_country(ip),
-                asn: get_asn(ip),
-            }))
+                get_country(ip),
+                get_asn(ip),
+            )))
         }
         IpAddr::V6(ipv6) => {
             if ipv6.is_loopback()
@@ -56,11 +56,11 @@ pub async fn endpoint_get_ip(Path(ip): Path<IpAddr>) -> Result<Json<RequestedAdd
             {
                 return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
             }
-            Ok(Json(RequestedAddress {
+            Ok(Json(RequestedAddress::new(
                 ip,
-                country: get_country(ip),
-                asn: get_asn(ip),
-            }))
+                get_country(ip),
+                get_asn(ip),
+            )))
         }
     }
 }

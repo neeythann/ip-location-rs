@@ -55,7 +55,9 @@ Which outputs:
   },
   "asn": {
     "autonomous_system_number": 13335,
-    "autonomous_system_organization": "Cloudflare, Inc.",
+    "autonomous_system_organization": "Cloudflare, Inc."
+  },
+  "notes": {
     "license": "CC BY 4.0 by RouteViews and DB-IP",
     "modifications": "https://github.com/sapics/ip-location-db/blob/main/asn/MODIFICATIONS"
   }
