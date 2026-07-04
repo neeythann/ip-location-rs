@@ -1,8 +1,9 @@
 use crate::ProxyType;
 use crate::db::{get_asn, get_country};
+use crate::handlers::PrettyJson;
 use crate::models::RequestedAddress;
 use axum::{
-    Extension, Json,
+    Extension,
     extract::{ConnectInfo, Path},
     http::{HeaderMap, StatusCode},
 };
@@ -21,17 +22,19 @@ pub async fn index(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Extension(proxy): Extension<ProxyType>,
     headers: HeaderMap,
-) -> Result<Json<RequestedAddress>, StatusCode> {
+) -> Result<PrettyJson<RequestedAddress>, StatusCode> {
     let ip = proxy.client_ip(&headers).unwrap_or_else(|| addr.ip());
 
-    Ok(Json(RequestedAddress::new(
+    Ok(PrettyJson(RequestedAddress::new(
         ip,
         get_country(ip),
         get_asn(ip),
     )))
 }
 
-pub async fn endpoint_get_ip(Path(ip): Path<IpAddr>) -> Result<Json<RequestedAddress>, StatusCode> {
+pub async fn endpoint_get_ip(
+    Path(ip): Path<IpAddr>,
+) -> Result<PrettyJson<RequestedAddress>, StatusCode> {
     match ip {
         IpAddr::V4(ipv4) => {
             if ipv4.is_loopback()
@@ -41,7 +44,7 @@ pub async fn endpoint_get_ip(Path(ip): Path<IpAddr>) -> Result<Json<RequestedAdd
             {
                 return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
             }
-            Ok(Json(RequestedAddress::new(
+            Ok(PrettyJson(RequestedAddress::new(
                 ip,
                 get_country(ip),
                 get_asn(ip),
@@ -56,7 +59,7 @@ pub async fn endpoint_get_ip(Path(ip): Path<IpAddr>) -> Result<Json<RequestedAdd
             {
                 return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
             }
-            Ok(Json(RequestedAddress::new(
+            Ok(PrettyJson(RequestedAddress::new(
                 ip,
                 get_country(ip),
                 get_asn(ip),
